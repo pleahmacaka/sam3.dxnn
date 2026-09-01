@@ -25,7 +25,14 @@ compile: _image
     done
 
 bench picture="calib/dog.jpg": _image
-    MSYS_NO_PATHCONV=1 podman run --rm --shm-size=8g -v "$PWD:/work" {{image}}         python /work/bench.py --build /work/{{out}} --image /work/{{picture}} --size {{size}}
+    MSYS_NO_PATHCONV=1 podman run --rm --shm-size=16g -v "$PWD:/work" -e PYTHONPATH=/work {{image}} \
+        python /work/bench.py --build /work/{{out}} --image /work/{{picture}} --size {{size}} --out /work/{{out}}
+
+compare picture="calib/dog.jpg" prompt="dog": bench
+    uv run python compare.py --build {{out}} --image {{picture}} --prompt {{prompt}} --size {{size}}
+
+verify:
+    uv run python verify.py
 
 _image:
     podman image exists {{image}} || podman build -t {{image}} -f Containerfile .

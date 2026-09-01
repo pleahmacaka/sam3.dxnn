@@ -17,15 +17,38 @@ Writes four `.dxnn` segments and their quantization checkpoints to `build/`.
 
 Prompt `dog`, 672 px, decoder in float on the CPU for both paths.
 
-| float | INT8 |
-| --- | --- |
-| ![float](assets/float.png) | ![int8](assets/int8.png) |
-| 1 instance, 4,295,261 px | 1 instance, 4,316,931 px |
-| reference | IoU 0.9896 |
+![compare](assets/compare.png)
 
-`just bench` reports the same comparison per segment.
+| | float | INT8 |
+| --- | --- | --- |
+| instances | 1 | 1 |
+| mask px | 95,199 | 95,413 |
+| score | 0.962 | 0.967 |
+| mask IoU | | 0.9938 |
 
-Encoder QSNR lands at 11-17 dB per segment, which the mask threshold absorbs.
+The INT8 side runs the `.qxnn` graphs with `fp32` off on `ActQuant`, `QConv` and
+`QGemm`, so activations and weights both round on DX-COM's own calibrated
+scales. All three ship bypassed, and a run that leaves any of them on measures
+float against float.
+
+`just verify` checks the float side against stock SAM3 at the same size: cosine
+0.999969, mask IoU 0.9999. The RoPE rewrite and the BGR swap cost nothing.
+
+`just bench` prints the encoder error as it accumulates. Each segment is fine on
+its own; the error compounds down the chain.
+
+| Segment | isolated QSNR | cumulative QSNR | cumulative cosine |
+| --- | --- | --- | --- |
+| 0 | 13.61 dB | 11.50 dB | 0.9673 |
+| 1 | 13.90 dB | 7.27 dB | 0.9074 |
+| 2 | 18.83 dB | 6.28 dB | 0.8780 |
+| 3 | 14.94 dB | 5.14 dB | 0.8472 |
+
+Isolated is `quant_diagnosis/diagnosis_report.html`, which feeds each segment a
+float input. Cumulative chains the quantized output forward, which is what the
+device would do. The mask survives it: the decoder absorbs an encoder that has
+drifted to cosine 0.847.
+
 Running the `.dxnn` on hardware is untested: no card.
 
 ## Layout
