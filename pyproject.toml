@@ -12,10 +12,15 @@ dependencies = [
     "numpy>=2.0",
     "pillow>=12.3.0",
     "torchvision>=0.28.0",
+    "typer>=0.27.1",
 ]
 
-[tool.uv]
-package = false
+[project.scripts]
+sam3-dxnn = "sam3_dxnn.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12"]
+build-backend = "uv_build"
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
